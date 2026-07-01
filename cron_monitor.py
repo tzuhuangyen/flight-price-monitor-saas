@@ -5,6 +5,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import requests
+import re
 
 # 1. 引入 dotenv
 from dotenv import load_dotenv
@@ -112,8 +113,12 @@ def run_auto_monitor():
         pref_depart = task.get('depart_date')
         pref_return = task.get('return_date')
         user_email = task.get('email')
-
+        if not user_email or not re.match(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$", user_email):
+            print(f"⚠️ 收件人 Email 格式不正確，跳過此任務: {user_email}")
+            continue
+        
         print(f"📡 正在向 API 請求 {origin} -> {destination} 的航班資料...")
+        
         url = f"https://api.travelpayouts.com/v2/prices/latest?currency=USD&origin={origin}&destination={destination}&token={API_KEY}"
         
         try:
@@ -146,8 +151,12 @@ def run_auto_monitor():
 
                 if lowest_price < target_price:
                     print(f"🚨 價格達標！嘗試發送通知信給 {user_email}...")
+                try:
                     send_email_notification(user_email, sorted_tickets[:3], target_price)
                     print(f"✅ Email 發送程序執行完畢！")
+                except Exception as email_error:
+                    print(f"❌ Email 發送失敗: {email_error}")
+
                 else:
                     print(f"⏭️ 最低價 ${lowest_price} 未低於目標價 ${target_price}，跳過。")
             else:
