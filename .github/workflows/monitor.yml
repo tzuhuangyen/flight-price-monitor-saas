@@ -1,0 +1,26 @@
+name: Daily Flight Price Monitor
+
+on:
+  schedule:
+    # 每天 UTC 時間 00:00 (台灣時間早上 8 點) 自動執行
+    - cron: '0 0 * * *'
+  workflow_dispatch: # 允許手動點擊按鈕執行
+
+jobs:
+  run-monitor:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-size: '3.10'
+
+    - name: Install dependencies
+      run: |
+        pip install requests
+
+    - name: Run flight monitor
+      run: python cron_monitor.py

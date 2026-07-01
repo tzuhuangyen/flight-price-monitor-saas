@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 機票價格自動監控系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght=300;400;500;600;700;800&family=Noto+Sans+TC:wght=300;400;500;700;900&display=swap');
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800">
+    <div class="max-w-6xl mx-auto py-10 px-4">
+        
+        <!-- Header -->
+        <div class="text-center mb-10">
+            <span class="bg-blue-50 text-blue-600 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider">SaaS Beta v2.0</span>
+            <h1 class="text-4xl font-black text-slate-900 flex items-center justify-center gap-3 mt-3">
+                <i class="fa-solid fa-plane-departure text-blue-600"></i> AI 機票價格自動監控
+            </h1>
+            <p class="text-slate-500 mt-2 max-w-xl mx-auto text-sm sm:text-base">
+                輸入您的旅行計畫，系統將自動比價。當 API 偵測到低於目標價的機票時，將自動發送 Email 通知您！
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- 左側：輸入表單 -->
+            <div class="lg:col-span-1">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 sticky top-6">
+                    <h2 class="text-lg font-bold mb-4 text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-blue-500"></i> 監控設定
+                    </h2>
+                    
+                    <!-- 表單開始 -->
+                    <form id="monitorForm" method="POST" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">出發機場 (IATA 碼)</label>
+                            <input type="text" name="origin" placeholder="例如: BUD" required uppercase maxlength="3"
+                                class="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-semibold uppercase tracking-wider">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">目的機場 (IATA 碼)</label>
+                            <input type="text" name="destination" placeholder="例如: TPE" required uppercase maxlength="3"
+                                class="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-semibold uppercase tracking-wider">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">目標價格 (USD)</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-2.5 text-slate-400 font-bold text-sm">$</span>
+                                <input type="number" name="target_price" placeholder="例如: 600" required
+                                    class="w-full pl-7 pr-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-semibold">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">偏好出發日期 (選填)</label>
+                            <input type="date" name="depart_date"
+                                class="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium text-slate-600">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">偏好回程日期 (選填)</label>
+                            <input type="date" name="return_date"
+                                class="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium text-slate-600">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">您的通知 Email</label>
+                            <input type="email" name="email" placeholder="your-email@gmail.com" required
+                                class="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium">
+                        </div>
+
+                        <!-- 雙按鈕設計 -->
+                        <div class="pt-2 space-y-2">
+                            <button type="submit" onclick="submitForm('/check')"
+                                class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-xl transition duration-200 flex items-center justify-center gap-2 text-sm shadow-md">
+                                <i class="fa-solid fa-magnifying-glass"></i> 僅進行單次即時查詢
+                            </button>
+                            
+                            <button type="submit" onclick="submitForm('/add_monitor')"
+                                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200 flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-100">
+                                <i class="fa-solid fa-bell"></i> 加入每日自動監控
+                            </button>
+                        </div>
+                    </form>
+
+                    <script>
+                        function submitForm(action) {
+                            const form = document.getElementById('monitorForm');
+                            form.action = action;
+                        }
+                    </script>
+                </div>
+            </div>
+
+            <!-- 右側：測試結果與監控清單展示區 -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- 狀態提示 -->
+                {% if status %}
+                <div class="p-4 rounded-2xl {% if '成功' in status or '🎉' in status or '📌' in status %}bg-emerald-50 border border-emerald-100 text-emerald-800{% elif 'ℹ️' in status %}bg-blue-50 border border-blue-100 text-blue-800{% else %}bg-amber-50 border border-amber-100 text-amber-800{% endif %} flex items-start gap-3">
+                    <div class="text-xl">
+                        {% if '成功' in status or '🎉' in status or '📌' in status %}
+                            <i class="fa-solid fa-circle-check text-emerald-500"></i>
+                        {% elif 'ℹ️' in status %}
+                            <i class="fa-solid fa-circle-info text-blue-500"></i>
+                        {% else %}
+                            <i class="fa-solid fa-circle-exclamation text-amber-500"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm">系統監控狀態</h3>
+                        <p class="text-xs mt-1 leading-relaxed">{{ status }}</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 航班結果列表 -->
+                {% if tickets %}
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-list-ul text-blue-500"></i> 偵測到的航班組合
+                        </h2>
+                        <span class="text-xs text-slate-400 font-medium">共 {{ tickets|length }} 筆結果</span>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        {% for ticket in tickets %}
+                        {% set is_fallback = (ticket.value == '???') %}
+                        {% set is_alternative = (status and 'ℹ️' in status) %}
+                        
+                        <div class="p-4 rounded-xl border transition-all duration-200 
+                            {% if is_fallback %}
+                                border-blue-200 bg-blue-50/20 hover:bg-blue-50/40
+                            {% elif loop.index == 1 and not is_alternative %}
+                                border-amber-200 bg-amber-50/20 hover:bg-amber-50/30
+                            {% else %}
+                                border-slate-100 bg-slate-50/30 hover:bg-slate-50/60
+                            {% endif %} 
+                            flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            
+                            <div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    {% if is_fallback %}
+                                        <span class="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">即時搜尋引導</span>
+                                    {% elif is_alternative %}
+                                        <span class="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded">推薦其他日期</span>
+                                    {% elif loop.index == 1 %}
+                                        <span class="bg-amber-400 text-amber-950 text-[10px] font-bold px-2 py-0.5 rounded">首選最低價</span>
+                                    {% else %}
+                                        <span class="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded">備選方案 {{ loop.index }}</span>
+                                    {% endif %}
+                                    <span class="text-slate-400 text-xs">來源: {{ ticket.gate or 'Aviasales' }}</span>
+                                </div>
+                                
+                                <div class="text-xl font-black text-slate-800 mt-2 flex items-center gap-2">
+                                    <span>{{ ticket.origin }}</span>
+                                    <i class="fa-solid fa-arrow-right text-xs text-slate-400"></i>
+                                    <span>{{ ticket.destination }}</span>
+                                </div>
+                                
+                                <div class="text-xs text-slate-500 mt-2 space-y-1">
+                                    <div class="flex items-center gap-1.5">
+                                        <i class="fa-regular fa-calendar text-slate-400 w-4"></i>
+                                        <span>去程日期: <strong class="text-slate-700">{{ ticket.depart_date }}</strong></span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5">
+                                        <i class="fa-regular fa-calendar-check text-slate-400 w-4"></i>
+                                        <span>回程日期: <strong class="text-slate-700">{{ ticket.return_date or '單程' }}</strong></span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="text-right w-full sm:w-auto flex sm:flex-col justify-between sm:justify-center items-center sm:items-end gap-2 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                                <div class="text-right">
+                                    {% if is_fallback %}
+                                        <div class="text-lg font-bold text-blue-600">即時票價</div>
+                                    {% else %}
+                                        <div class="text-2xl font-black text-rose-600">${{ ticket.value }} <span class="text-xs font-normal text-slate-400">USD</span></div>
+                                    {% endif %}
+                                </div>
+                                <a href="{{ ticket.search_url }}" target="_blank" 
+                                   class="{% if is_fallback %}bg-blue-600 hover:bg-blue-700{% else %}bg-emerald-600 hover:bg-emerald-700{% endif %} text-white text-xs font-bold py-2 px-4 rounded-xl transition duration-200 flex items-center gap-1.5 shadow-md">
+                                    前往官網搜尋 <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 核心：當前自動監控任務清單 -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
+                        <i class="fa-solid fa-clock-rotate-left text-blue-500"></i> 當前運作中的自動監控任務
+                    </h2>
+                    
+                    {% if tasks %}
+                    <div class="divide-y divide-slate-100">
+                        {% for task in tasks %}
+                        <div class="py-4 flex justify-between items-center gap-4">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-slate-800">{{ task.origin }} ➡️ {{ task.destination }}</span>
+                                    <span class="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded">目標價: ${{ task.target_price }} USD</span>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-1">
+                                    📅 出發: {{ task.depart_date }} | 回程: {{ task.return_date }}
+                                </p>
+                                <p class="text-xs text-slate-400">
+                                    📧 通知信箱: {{ task.email }}
+                                </p>
+                            </div>
+                            
+                            <form action="/delete_monitor/{{ loop.index0 }}" method="POST">
+                                <button type="submit" class="text-slate-400 hover:text-rose-600 p-2 transition duration-150">
+                                    <i class="fa-regular fa-trash-can text-sm"></i>
+                                </button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-8 text-slate-400 text-xs">
+                        <i class="fa-solid fa-folder-open text-2xl mb-2 text-slate-300 block"></i>
+                        目前沒有任何自動監控任務。在左側輸入資料並點擊「加入每日自動監控」即可開始！
+                    </div>
+                    {% endif %}
+                </div>
+
+            </div>
+        </div>
+    </div>
+</body>
+</html>
