@@ -26,6 +26,16 @@ print(f"TRAVELPAYOUTS_API_KEY 長度: {len(API_KEY) if API_KEY else 0}")
 print(f"SENDER_EMAIL 是否存在: {bool(SENDER_EMAIL)}")
 print(f"SENDER_PASSWORD 是否存在: {bool(SENDER_PASSWORD)}")
 
+if not API_KEY:
+    raise ValueError("❌ 找不到 TRAVELPAYOUTS_API_KEY，請檢查 .env 或 GitHub Secrets。")
+
+if not SENDER_EMAIL:
+    raise ValueError("❌ 找不到 SENDER_EMAIL，請檢查 .env 或 GitHub Secrets。")
+
+if not SENDER_PASSWORD:
+    raise ValueError("❌ 找不到 SENDER_PASSWORD，請檢查 .env 或 GitHub Secrets。")
+
+
 def generate_search_url(origin, destination, depart_date, return_date=None):
     if not depart_date or depart_date == "不限日期":
         depart_date = "2026-12-05" # 預設安全日期
