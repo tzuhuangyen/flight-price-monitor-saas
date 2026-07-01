@@ -20,6 +20,11 @@ API_KEY = os.getenv("TRAVELPAYOUTS_API_KEY")
 SENDER_EMAIL = os.getenv("SENDER_EMAIL")
 SENDER_PASSWORD = os.getenv("SENDER_PASSWORD")
 
+print("🔐 環境變數檢查：")
+print(f"TRAVELPAYOUTS_API_KEY 是否存在: {bool(API_KEY)}")
+print(f"TRAVELPAYOUTS_API_KEY 長度: {len(API_KEY) if API_KEY else 0}")
+print(f"SENDER_EMAIL 是否存在: {bool(SENDER_EMAIL)}")
+print(f"SENDER_PASSWORD 是否存在: {bool(SENDER_PASSWORD)}")
 
 def generate_search_url(origin, destination, depart_date, return_date=None):
     if not depart_date or depart_date == "不限日期":
