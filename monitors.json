@@ -1,26 +1,10 @@
 [
-    {
+  {
     "origin": "JFK",
     "destination": "LHR",
     "target_price": 5000,
     "depart_date": "不限日期",
     "return_date": "單程",
-    "email": "你的收信Email@gmail.com"
-    },
-    {
-        "origin": "BUD",
-        "destination": "TPE",
-        "target_price": 2000.0,
-        "depart_date": "2026-12-05",
-        "return_date": "單程",
-        "email": "912yan@gmail.com"
-    },
-    {
-        "origin": "JFK",
-        "destination": "LHR",
-        "target_price": 5000.0,
-        "depart_date": "不限日期",
-        "return_date": "單程",
-        "email": "912yan@gmail.com"
-    }
+    "email": "912yan@gmail.com"
+  }
 ]
