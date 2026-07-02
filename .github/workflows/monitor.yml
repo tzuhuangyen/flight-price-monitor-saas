@@ -2,30 +2,39 @@ name: Daily Flight Price Monitor
 
 on:
   schedule:
-    # 每天 UTC 時間 00:00 (台灣時間早上 8 點) 自動執行
-    - cron: '0 0 * * *'
-  workflow_dispatch: # 允許手動點擊按鈕執行
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   run-monitor:
     runs-on: ubuntu-latest
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-    - name: Install dependencies
-      run: |
-        pip install requests python-dotenv
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
-    - name: Run flight monitor
-      # 將 GitHub Secrets 注入為環境變數，讓 python-dotenv 可以讀取到
-      env:
-        TRAVELPAYOUTS_API_KEY: ${{ secrets.TRAVELPAYOUTS_API_KEY }}
-        SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
-        SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
-      run: python cron_monitor.py
+      - name: Run flight monitor
+        run: python cron_monitor.py
+        env:
+          TRAVELPAYOUTS_API_KEY: ${{ secrets.TRAVELPAYOUTS_API_KEY }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
+
+      - name: Commit sent alerts update
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add sent_alerts.json
+          git diff --cached --quiet || git commit -m "chore: update sent alerts"
+          git push
