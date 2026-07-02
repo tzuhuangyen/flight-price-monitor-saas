@@ -1,6 +1,7 @@
 # cron_monitor.py
 import os
 import json
+import re
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -15,11 +16,17 @@ load_dotenv()
 # 讀取與 cron_monitor.py 同目錄下的 monitors.json
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MONITOR_FILE = os.path.join(BASE_DIR, 'monitors.json')
+def is_valid_email(email):
+    if not email:
+        return False
+    return re.match(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$", email) is not None
+
 
 # 3. 從環境變數讀取
-API_KEY = os.getenv("TRAVELPAYOUTS_API_KEY")
-SENDER_EMAIL = os.getenv("SENDER_EMAIL")
-SENDER_PASSWORD = os.getenv("SENDER_PASSWORD")
+API_KEY = os.getenv("TRAVELPAYOUTS_API_KEY", "").strip()
+SENDER_EMAIL = os.getenv("SENDER_EMAIL", "").strip()
+SENDER_PASSWORD = os.getenv("SENDER_PASSWORD", "").strip()
+
 
 print("🔐 環境變數檢查：")
 print(f"TRAVELPAYOUTS_API_KEY 是否存在: {bool(API_KEY)}")
@@ -112,7 +119,12 @@ def run_auto_monitor():
         target_price = task['target_price']
         pref_depart = task.get('depart_date')
         pref_return = task.get('return_date')
-        user_email = task.get('email')
+        user_email = str(task.get('email', '')).strip()
+
+        if not is_valid_email(user_email):
+            print(f"⚠️ 收件人 Email 格式不正確，跳過此任務: {user_email}")
+            continue
+
         if not user_email or not re.match(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$", user_email):
             print(f"⚠️ 收件人 Email 格式不正確，跳過此任務: {user_email}")
             continue
