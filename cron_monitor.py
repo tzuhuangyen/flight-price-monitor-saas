@@ -161,24 +161,25 @@ def run_auto_monitor():
 
                 print(f"🔍 檢查 {origin}->{destination}: 當前最低價 ${lowest_price} (目標: ${target_price})")
 
-                if lowest_price < target_price:
+                if lowest_price <= target_price:
                     print(f"🚨 價格達標！嘗試發送通知信給 {user_email}...")
-                try:
-                    send_email_notification(user_email, sorted_tickets[:3], target_price)
-                    print(f"✅ Email 發送程序執行完畢！")
-                except Exception as email_error:
-                    print(f"❌ Email 發送失敗: {email_error}")
-
+                    try:
+                        send_email_notification(user_email, sorted_tickets[:3], target_price)
+                        print(f"✅ Email 發送程序執行完畢！")
+                    except Exception as email_error:
+                        print(f"❌ Email 發送失敗: {email_error}")
                 else:
-                    print(f"⏭️ 最低價 ${lowest_price} 未低於目標價 ${target_price}，跳過。")
+                    print(f"⏭️ 最低價 ${lowest_price} 高於目標價 ${target_price}，跳過。")
             else:
                 print("⚠️ 找不到符合您指定日期的航班快取資料。")
+
                 
         except Exception as e:
             print(f"❌ 執行任務 {origin}->{destination} 時發生嚴重錯誤: {e}")
             # 印出詳細錯誤行數
-            import traceback
-            traceback.print_exc()
+
+import traceback
+traceback.print_exc()
 
 if __name__ == "__main__":
     run_auto_monitor()
