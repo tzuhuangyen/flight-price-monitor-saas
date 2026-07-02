@@ -17,10 +17,39 @@ load_dotenv()
 # 讀取與 cron_monitor.py 同目錄下的 monitors.json
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MONITOR_FILE = os.path.join(BASE_DIR, 'monitors.json')
+SENT_ALERTS_FILE = os.path.join(BASE_DIR, 'sent_alerts.json')
+
 def is_valid_email(email):
     if not email:
         return False
     return re.match(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$", email) is not None
+
+def load_sent_alerts():
+    if not os.path.exists(SENT_ALERTS_FILE):
+        return set()
+
+    try:
+        with open(SENT_ALERTS_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            return set(data)
+    except Exception as e:
+        print(f"⚠️ 無法讀取 sent_alerts.json，將視為沒有已寄紀錄: {e}")
+        return set()
+
+
+def save_sent_alerts(sent_alerts):
+    try:
+        with open(SENT_ALERTS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(sorted(list(sent_alerts)), f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"⚠️ 無法寫入 sent_alerts.json: {e}")
+
+
+def build_alert_key(origin, destination, ticket, user_email):
+    depart_date = ticket.get('depart_date', 'unknown')
+    return_date = ticket.get('return_date', '單程')
+    price = ticket.get('value', 'unknown')
+    return f"{origin}-{destination}-{depart_date}-{return_date}-{price}-{user_email}"
 
 
 # 3. 從環境變數讀取
@@ -114,6 +143,9 @@ def run_auto_monitor():
             return
 
     print(f"🔄 開始執行自動監控，共 {len(tasks)} 個任務...")
+    sent_alerts = load_sent_alerts()
+    print(f"📬 已載入 {len(sent_alerts)} 筆已通知紀錄。")
+
 
     for task in tasks:
         origin = task['origin']
@@ -162,12 +194,21 @@ def run_auto_monitor():
                 print(f"🔍 檢查 {origin}->{destination}: 當前最低價 ${lowest_price} (目標: ${target_price})")
 
                 if lowest_price <= target_price:
-                    print(f"🚨 價格達標！嘗試發送通知信給 {user_email}...")
-                    try:
-                        send_email_notification(user_email, sorted_tickets[:3], target_price)
-                        print(f"✅ Email 發送程序執行完畢！")
-                    except Exception as email_error:
-                        print(f"❌ Email 發送失敗: {email_error}")
+                    alert_key = build_alert_key(origin, destination, sorted_tickets[0], user_email)
+
+                    if alert_key in sent_alerts:
+                        print(f"🔁 這筆低價通知已寄過，跳過重複通知: {alert_key}")
+                    else:
+                        print(f"🚨 價格達標！嘗試發送通知信給 {user_email}...")
+                        try:
+                            send_email_notification(user_email, sorted_tickets[:3], target_price)
+                            print(f"✅ Email 發送程序執行完畢！")
+
+                            sent_alerts.add(alert_key)
+                            save_sent_alerts(sent_alerts)
+                            print(f"📝 已記錄本次通知，避免重複寄送。")
+                        except Exception as email_error:
+                            print(f"❌ Email 發送失敗: {email_error}")
                 else:
                     print(f"⏭️ 最低價 ${lowest_price} 高於目標價 ${target_price}，跳過。")
             else:
