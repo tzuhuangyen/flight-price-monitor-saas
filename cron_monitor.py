@@ -5,8 +5,9 @@ import re
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import traceback
 import requests
-import re
+
 
 # 1. 引入 dotenv
 from dotenv import load_dotenv
@@ -29,6 +30,7 @@ SENDER_PASSWORD = os.getenv("SENDER_PASSWORD", "").strip()
 
 
 print("🔐 環境變數檢查：")
+print("🧪 cron_monitor.py 版本: 2026-07-02-fix-threshold-v2")
 print(f"TRAVELPAYOUTS_API_KEY 是否存在: {bool(API_KEY)}")
 print(f"TRAVELPAYOUTS_API_KEY 長度: {len(API_KEY) if API_KEY else 0}")
 print(f"SENDER_EMAIL 是否存在: {bool(SENDER_EMAIL)}")
@@ -121,9 +123,7 @@ def run_auto_monitor():
         pref_return = task.get('return_date')
         user_email = str(task.get('email', '')).strip()
 
-        if not is_valid_email(user_email):
-            print(f"⚠️ 收件人 Email 格式不正確，跳過此任務: {user_email}")
-            continue
+       
 
         if not user_email or not re.match(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$", user_email):
             print(f"⚠️ 收件人 Email 格式不正確，跳過此任務: {user_email}")
@@ -177,9 +177,8 @@ def run_auto_monitor():
         except Exception as e:
             print(f"❌ 執行任務 {origin}->{destination} 時發生嚴重錯誤: {e}")
             # 印出詳細錯誤行數
-
-import traceback
-traceback.print_exc()
+            import traceback
+            traceback.print_exc()
 
 if __name__ == "__main__":
     run_auto_monitor()
