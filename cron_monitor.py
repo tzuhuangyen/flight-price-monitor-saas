@@ -7,6 +7,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import traceback
 import requests
+from affiliate_links import generate_aviasales_search_url
 
 
 # 1. 引入 dotenv
@@ -58,77 +59,132 @@ SENDER_EMAIL = os.getenv("SENDER_EMAIL", "").strip()
 SENDER_PASSWORD = os.getenv("SENDER_PASSWORD", "").strip()
 
 
-print("🔐 環境變數檢查：")
-print("🧪 cron_monitor.py 版本: 2026-07-02-fix-threshold-v2")
-print(f"TRAVELPAYOUTS_API_KEY 是否存在: {bool(API_KEY)}")
-print(f"TRAVELPAYOUTS_API_KEY 長度: {len(API_KEY) if API_KEY else 0}")
-print(f"SENDER_EMAIL 是否存在: {bool(SENDER_EMAIL)}")
-print(f"SENDER_PASSWORD 是否存在: {bool(SENDER_PASSWORD)}")
+def validate_environment():
+    """檢查必要環境變數，只在直接執行 cron_monitor.py 時呼叫"""
+    print("🔐 環境變數檢查：")
+    print("🧪 cron_monitor.py 版本: 2026-07-03-affiliate-mvp-v1")
+    print(f"TRAVELPAYOUTS_API_KEY 是否存在: {bool(API_KEY)}")
+    print(f"TRAVELPAYOUTS_API_KEY 長度: {len(API_KEY) if API_KEY else 0}")
+    print(f"SENDER_EMAIL 是否存在: {bool(SENDER_EMAIL)}")
+    print(f"SENDER_PASSWORD 是否存在: {bool(SENDER_PASSWORD)}")
 
-if not API_KEY:
-    raise ValueError("❌ 找不到 TRAVELPAYOUTS_API_KEY，請檢查 .env 或 GitHub Secrets。")
+    if not API_KEY:
+        raise ValueError("❌ 找不到 TRAVELPAYOUTS_API_KEY，請檢查 .env 或 GitHub Secrets。")
 
-if not SENDER_EMAIL:
-    raise ValueError("❌ 找不到 SENDER_EMAIL，請檢查 .env 或 GitHub Secrets。")
+    if not SENDER_EMAIL:
+        raise ValueError("❌ 找不到 SENDER_EMAIL，請檢查 .env 或 GitHub Secrets。")
 
-if not SENDER_PASSWORD:
-    raise ValueError("❌ 找不到 SENDER_PASSWORD，請檢查 .env 或 GitHub Secrets。")
+    if not SENDER_PASSWORD:
+        raise ValueError("❌ 找不到 SENDER_PASSWORD，請檢查 .env 或 GitHub Secrets。")
 
 
 def generate_search_url(origin, destination, depart_date, return_date=None):
+    """產生帶有 Travelpayouts marker 的 Aviasales 搜尋連結，用於 Email CTA"""
+
     if not depart_date or depart_date == "不限日期":
-        depart_date = "2026-12-05" # 預設安全日期
-    dep_day = depart_date[8:10]
-    dep_month = depart_date[5:7]
-    url = f"https://www.aviasales.com/search/{origin}{dep_day}{dep_month}{destination}"
-    if return_date and return_date != "單程":
-        ret_day = return_date[8:10]
-        ret_month = return_date[5:7]
-        url += f"{ret_day}{ret_month}"
-    url += "1"
-    return url
+        depart_date = "2026-12-05"  # 預設安全日期，避免產生無效網址
+
+    if return_date in [None, "", "單程", "不限日期"]:
+        return_date = None
+
+    return generate_aviasales_search_url(
+        origin=origin,
+        destination=destination,
+        departure_date=depart_date,
+        return_date=return_date,
+        adults=1
+    )
+
 
 def send_email_notification(to_email, tickets, target_price):
     msg = MIMEMultipart('alternative')
-    msg['Subject'] = f"🚨 [自動監控] 發現低於 ${target_price} USD 的便宜機票！"
+    msg['Subject'] = f"✈️ 低價機票提醒：偵測到可能低於 ${target_price} USD 的航班"
     msg['From'] = SENDER_EMAIL
     msg['To'] = to_email
 
     html_content = f"""
     <html>
-    <body style="font-family: Arial, sans-serif; background-color: #f4f7f6; padding: 20px; color: #333;">
-        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-            <h2 style="color: #2563eb; text-align: center; margin-bottom: 20px;">✈️ 每日自動監控警報</h2>
-            <p>您好，系統在每日自動巡檢中，偵測到符合您目標價 <b>${target_price} USD</b> 的機票：</p>
-            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+    <body style="font-family: Arial, sans-serif; background-color: #f4f7f6; padding: 20px; color: #333; margin: 0;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 14px; padding: 28px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+            
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="font-size: 34px; line-height: 1; margin-bottom: 10px;">✈️</div>
+                <h2 style="color: #2563eb; text-align: center; margin: 0; font-size: 24px;">
+                    每日低價機票提醒
+                </h2>
+            </div>
+
+            <p style="font-size: 15px; line-height: 1.7; color: #334155; margin: 0 0 12px 0;">
+                您好，我們在每日自動巡檢中，偵測到可能符合您目標價 
+                <b>${target_price} USD</b> 的低價機票趨勢。
+            </p>
+
+            <p style="font-size: 13px; color: #64748b; line-height: 1.7; margin: 0 0 22px 0;">
+                以下價格來自近期票價資料偵測，實際票價、座位與可訂狀態，請點擊按鈕前往 Aviasales 即時頁面確認。
+            </p>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 22px 0;">
     """
 
     for idx, ticket in enumerate(tickets):
+        return_date_text = ticket.get('return_date', '單程') or '單程'
+
         html_content += f"""
-            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
-                <span style="background-color: #fef3c7; color: #92400e; font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 4px;">推薦方案 {idx+1}</span>
-                <h3 style="margin: 10px 0 5px 0; color: #1e293b;">{ticket['origin']} ➡️ {ticket['destination']}</h3>
-                <p style="margin: 5px 0; font-size: 13px; color: #64748b;">
-                    📅 去程日期: <b>{ticket['depart_date']}</b><br>
-                    📅 回程日期: <b>{ticket.get('return_date', '單程')}</b>
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 18px;">
+                
+                <div style="margin-bottom: 12px;">
+                    <span style="background-color: #dbeafe; color: #1d4ed8; font-size: 12px; font-weight: bold; padding: 5px 10px; border-radius: 999px; display: inline-block;">
+                        推薦方案 {idx+1}
+                    </span>
+                </div>
+
+                <h3 style="margin: 0 0 12px 0; color: #1e293b; font-size: 22px;">
+                    {ticket['origin']} → {ticket['destination']}
+                </h3>
+
+                <p style="margin: 0 0 16px 0; font-size: 14px; color: #64748b; line-height: 1.8;">
+                    📅 去程日期：<b>{ticket['depart_date']}</b><br>
+                    📅 回程日期：<b>{return_date_text}</b>
                 </p>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
-                    <span style="font-size: 20px; font-weight: bold; color: #e11d48;">${ticket['value']} USD</span>
-                    <a href="{ticket['search_url']}" target="_blank" style="background-color: #10b981; color: white; text-decoration: none; font-size: 12px; font-weight: bold; padding: 8px 16px; border-radius: 6px; display: inline-block;">立即去官網預訂</a>
+
+                <div style="background-color: #ffffff; border-radius: 10px; padding: 16px; border: 1px solid #e5e7eb;">
+                    <p style="font-size: 12px; color: #64748b; margin: 0 0 6px 0; font-weight: bold;">
+                        偵測價格
+                    </p>
+
+                    <div style="font-size: 30px; font-weight: bold; color: #e11d48; margin-bottom: 16px;">
+                        ${ticket['value']} USD
+                    </div>
+
+                    <a href="{ticket['search_url']}" target="_blank" 
+                       style="background-color: #2563eb; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: bold; padding: 13px 18px; border-radius: 10px; display: block; text-align: center;">
+                        查看 Aviasales 即時票價
+                    </a>
                 </div>
             </div>
         """
 
     html_content += """
+            <div style="margin-top: 24px; padding: 14px; background-color: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0;">
+                <p style="font-size: 12px; color: #64748b; line-height: 1.7; margin: 0;">
+                    提醒：此價格為系統根據近期票價資料偵測到的低價趨勢，實際票價、稅費、行李規則、座位與可訂狀態，
+                    請以點擊後 Aviasales 或航空公司頁面顯示為準。
+                </p>
+            </div>
+
+            <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 22px; line-height: 1.6;">
+                此郵件由 AI 機票價格自動監控系統發送。若要取消監控，請至系統頁面刪除任務。
+            </p>
         </div>
     </body>
     </html>
     """
+
     msg.attach(MIMEText(html_content, 'html'))
+
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
         server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
-
 
 def run_auto_monitor():
     if not os.path.exists(MONITOR_FILE):
@@ -222,4 +278,6 @@ def run_auto_monitor():
             traceback.print_exc()
 
 if __name__ == "__main__":
+    validate_environment()
     run_auto_monitor()
+

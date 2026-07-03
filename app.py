@@ -4,7 +4,8 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import requests
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect
+from affiliate_links import generate_aviasales_search_url
 
 # 1. 引入 dotenv 套件
 from dotenv import load_dotenv
@@ -23,57 +24,83 @@ SENDER_PASSWORD = os.getenv("SENDER_PASSWORD")
 MONITOR_FILE = os.path.join(base_dir, 'monitors.json')
 
 def generate_search_url(origin, destination, depart_date, return_date=None):
-    """動態生成 Aviasales 搜尋連結"""
-    # 格式化日期為 DDMM，例如 2026-12-05 -> 0512
-    dep_day = depart_date[8:10]
-    dep_month = depart_date[5:7]
-    url = f"https://www.aviasales.com/search/{origin}{dep_day}{dep_month}{destination}"
-    
-    if return_date:
-        ret_day = return_date[8:10]
-        ret_month = return_date[5:7]
-        url += f"{ret_day}{ret_month}"
-        
-    url += "1" # 1位成人
-    return url
+    """產生帶有 Travelpayouts marker 的 Aviasales 搜尋連結"""
+
+    if return_date in [None, "", "單程", "不限日期"]:
+        return_date = None
+
+    return generate_aviasales_search_url(
+        origin=origin,
+        destination=destination,
+        departure_date=depart_date,
+        return_date=return_date,
+        adults=1
+    )
+
 
 def send_email_notification(to_email, tickets, target_price):
-    """發送精美 HTML 價格警報郵件"""
     msg = MIMEMultipart('alternative')
-    msg['Subject'] = f"🚨 價格警報！偵測到低於 ${target_price} USD 的便宜機票！"
+    msg['Subject'] = f"🚨 [低價提醒] 偵測到可能低於 ${target_price} USD 的機票"
     msg['From'] = SENDER_EMAIL
     msg['To'] = to_email
 
-    # 建立 HTML 內容
     html_content = f"""
     <html>
     <body style="font-family: Arial, sans-serif; background-color: #f4f7f6; padding: 20px; color: #333;">
         <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-            <h2 style="color: #2563eb; text-align: center; margin-bottom: 20px;">✈️ AI 機票價格監控警報</h2>
-            <p>您好，系統偵測到符合您目標價 <b>${target_price} USD</b> 的最優機票組合：</p>
+            <h2 style="color: #2563eb; text-align: center; margin-bottom: 20px;">✈️ 每日低價機票提醒</h2>
+
+            <p style="font-size: 14px; line-height: 1.7; color: #334155;">
+                您好，系統在每日自動巡檢中，偵測到可能符合您目標價 
+                <b>${target_price} USD</b> 的低價機票趨勢：
+            </p>
+
+            <p style="font-size: 12px; color: #64748b; line-height: 1.6;">
+                以下價格來自近期票價資料偵測，實際票價、座位與可訂狀態，請點擊按鈕前往 Aviasales 即時頁面確認。
+            </p>
+
             <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
     """
 
     for idx, ticket in enumerate(tickets):
         html_content += f"""
             <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
-                <span style="background-color: #fef3c7; color: #92400e; font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 4px;">推薦方案 {idx+1}</span>
-                <h3 style="margin: 10px 0 5px 0; color: #1e293b;">{ticket['origin']} ➡️ {ticket['destination']}</h3>
-                <p style="margin: 5px 0; font-size: 13px; color: #64748b;">
+                <span style="background-color: #fef3c7; color: #92400e; font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 4px;">
+                    推薦方案 {idx+1}
+                </span>
+
+                <h3 style="margin: 10px 0 5px 0; color: #1e293b;">
+                    {ticket['origin']} ➡️ {ticket['destination']}
+                </h3>
+
+                <p style="margin: 5px 0; font-size: 13px; color: #64748b; line-height: 1.6;">
                     📅 去程日期: <b>{ticket['depart_date']}</b><br>
-                    📅 回程日期: <b>{ticket.get('return_date', '單程')}</b><br>
-                    🔄 轉機次數: <b>{"直飛" if ticket.get('number_of_changes', 0) == 0 else f"轉機 {ticket['number_of_changes']} 次"}</b>
+                    📅 回程日期: <b>{ticket.get('return_date', '單程') or '單程'}</b>
                 </p>
+
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
-                    <span style="font-size: 20px; font-weight: bold; color: #e11d48;">${ticket['value']} USD</span>
-                    <a href="{ticket['search_url']}" target="_blank" style="background-color: #10b981; color: white; text-decoration: none; font-size: 12px; font-weight: bold; padding: 8px 16px; border-radius: 6px; display: inline-block;">立即去官網預訂</a>
+                    <span style="font-size: 20px; font-weight: bold; color: #e11d48;">
+                        ${ticket['value']} USD
+                    </span>
+
+                    <a href="{ticket['search_url']}" target="_blank" 
+                       style="background-color: #10b981; color: white; text-decoration: none; font-size: 12px; font-weight: bold; padding: 8px 16px; border-radius: 6px; display: inline-block;">
+                        查看即時票價
+                    </a>
                 </div>
             </div>
         """
 
     html_content += """
-            <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 30px;">
-                此郵件由 AI 機票價格自動監控系統自動發送。若要取消監控，請至系統後台刪除任務。
+            <div style="margin-top: 24px; padding: 14px; background-color: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <p style="font-size: 11px; color: #64748b; line-height: 1.6; margin: 0;">
+                    提醒：此價格為系統根據近期票價資料偵測到的低價趨勢，實際票價、稅費、行李規則、座位與可訂狀態，
+                    請以點擊後 Aviasales 或航空公司頁面顯示為準。
+                </p>
+            </div>
+
+            <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 20px;">
+                此郵件由 AI 機票價格自動監控系統發送。若要取消監控，請至系統頁面刪除任務。
             </p>
         </div>
     </body>
@@ -86,6 +113,7 @@ def send_email_notification(to_email, tickets, target_price):
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
         server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
 
+
 @app.route('/')
 def index():
     # 載入當前所有的監控任務，展示在網頁上
@@ -97,6 +125,36 @@ def index():
             except:
                 tasks = []
     return render_template('index.html', tasks=tasks)
+
+@app.route('/search_now', methods=['POST'])
+def search_now():
+    """使用者直接搜尋，即時導向 Aviasales affiliate 搜尋頁"""
+    origin = request.form.get('origin', '').upper().strip()
+    destination = request.form.get('destination', '').upper().strip()
+    depart_date = request.form.get('depart_date', '').strip()
+    return_date = request.form.get('return_date', '').strip()
+    adults = int(request.form.get('adults', 1))
+
+    if not origin or not destination or not depart_date:
+        return render_template(
+            'index.html',
+            status="❌ 請至少輸入出發地、目的地與去程日期。",
+            tasks=get_all_tasks()
+        )
+
+    if not return_date:
+        return_date = None
+
+    search_url = generate_aviasales_search_url(
+        origin=origin,
+        destination=destination,
+        departure_date=depart_date,
+        return_date=return_date,
+        adults=adults
+    )
+
+    return render_template("redirect.html", search_url=search_url)
+
 
 @app.route('/check', methods=['POST'])
 def check():

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>即將前往 Aviasales</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <meta http-equiv="refresh" content="3;url={{ search_url }}" />
+  </head>
+
+  <body
+    class="bg-slate-50 min-h-screen flex items-center justify-center text-slate-800 px-4"
+  >
+    <div
+      class="max-w-md w-full bg-white rounded-3xl shadow-sm border border-slate-100 p-8 text-center"
+    >
+      <div
+        class="w-16 h-16 mx-auto mb-5 rounded-full bg-blue-50 flex items-center justify-center"
+      >
+        <div
+          class="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"
+        ></div>
+      </div>
+
+      <h1 class="text-2xl font-black text-slate-900 mb-3">
+        即將帶你前往 Aviasales
+      </h1>
+
+      <p class="text-sm text-slate-500 leading-relaxed mb-6">
+        我們正在為你開啟即時機票搜尋頁面。 實際票價、座位與可訂狀態，請以
+        Aviasales 頁面顯示為準。
+      </p>
+
+      <!-- <div class="bg-slate-50 rounded-2xl p-4 text-left mb-6">
+        <p class="text-xs font-bold text-slate-400 uppercase mb-2">
+          Redirect URL
+        </p>
+        <p class="text-xs text-slate-500 break-all">{{ search_url }}</p>
+      </div> -->
+
+      <a
+        href="{{ search_url }}"
+        class="w-full inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200 text-sm"
+      >
+        如果沒有自動跳轉，請點這裡
+      </a>
+
+      <p class="text-[11px] text-slate-400 mt-5 leading-relaxed">
+        您將在 2 秒後自動前往合作夥伴網站。
+      </p>
+    </div>
+  </body>
+</html>
