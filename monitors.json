@@ -1,1 +1,10 @@
-[]
+[
+    {
+        "origin": "BUD",
+        "destination": "TPE",
+        "target_price": 400.0,
+        "depart_date": "2026-12-10",
+        "return_date": "單程",
+        "email": "912yan@gmail.com"
+    }
+]
