@@ -6,3 +6,5 @@
 __pycache__/
 *.pyc
 # monitors.json
+.DS_Store
+sent_alerts.json
