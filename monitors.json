@@ -1,10 +1,1 @@
-[
-  {
-    "origin": "JFK",
-    "destination": "LHR",
-    "target_price": 5000,
-    "depart_date": "不限日期",
-    "return_date": "單程",
-    "email": "912yan@gmail.com"
-  }
-]
+[]
