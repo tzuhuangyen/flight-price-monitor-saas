@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   run-monitor:
@@ -15,6 +15,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Restore sent alerts cache
+        uses: actions/cache/restore@v4
+        with:
+          path: sent_alerts.json
+          key: sent-alerts-${{ github.run_id }}
+          restore-keys: |
+            sent-alerts-
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -28,13 +36,13 @@ jobs:
         run: python cron_monitor.py
         env:
           TRAVELPAYOUTS_API_KEY: ${{ secrets.TRAVELPAYOUTS_API_KEY }}
+          TRAVELPAYOUTS_MARKER: ${{ secrets.TRAVELPAYOUTS_MARKER }}
           SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
           SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
 
-      - name: Commit sent alerts update
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add sent_alerts.json
-          git diff --cached --quiet || git commit -m "chore: update sent alerts"
-          git push
+      - name: Save sent alerts cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: sent_alerts.json
+          key: sent-alerts-${{ github.run_id }}
